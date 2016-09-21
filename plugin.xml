@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    id="com.cloudoki.vuforiaplugin"
+    version="0.0.1">
+    <name>Vuforia Cordova Plugin</name>
+
+    <description>...</description>
+
+    <author>Délio Amaral</author>
+
+    <keywords></keywords>
+
+    <repo>https://github.com/</repo>
+
+    <license>See License.md for details of the license</license>
+
+    <engines>
+      <engine name="cordova" version=">=3.4.0" />
+    </engines>
+
+    <asset src="www/VuforiaCordovaPlugin.js" target="js/VuforiaCordovaPlugin.js"/>
+
+    <js-module src="www/VuforiaCordovaPlugin.js" name="VuforiaCordovaPlugin">
+        <clobbers target="VuforiaCordovaPlugin" />
+    </js-module>
+
+    <!-- Android -->
+    <platform name="android">
+      <config-file target="res/xml/config.xml" parent="/*">
+         <feature name="VuforiaCordovaPlugin">
+           <param name="android-package" value="com.cloudoki.vuforiaplugin.VuforiaCordovaPlugin"/>
+           <param name="onload" value="true" />
+         </feature>
+      </config-file>
+      <config-file parent="/manifest" target="AndroidManifest.xml">
+        <uses-sdk android:minSdkVersion="16" android:targetSdkVersion="23" />
+        <uses-permission android:name="android.permission.CAMERA" />
+        <uses-permission android:name="android.permission.INTERNET" />
+        <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+        <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+        <uses-feature android:name="android.hardware.camera.autofocus" android:required="true" />
+        <supports-screens
+            android:smallScreens="true"
+            android:normalScreens="true"
+            android:largeScreens="true"
+            android:xlargeScreens="true"
+            android:anyDensity="true" />
+      </config-file>
+
+      <!-- Add our required strings -->
+      <config-file target="res/values/strings.xml" parent="/*">
+          <string name="button_OK">OK</string>
+
+          <string name="INIT_ERROR">Error</string>
+          <string name="INIT_ERROR_DEVICE_NOT_SUPPORTED">Failed to initialize Vuforia. This device is not supported.</string>
+          <string name="INIT_ERROR_NO_CAMERA_ACCESS">Failed to initialize Vuforia. Camera not accessible</string>
+          <string name="INIT_LICENSE_ERROR_MISMATCH_KEY">Vuforia App key is not valid for this product. Please get a valid key, by logging into your account at developer.vuforia.com and choosing the right product type during project creation.</string>
+          <string name="INIT_LICENSE_ERROR_MISSING_KEY">Vuforia App key is missing. Please get a valid key, by logging into your account at developer.vuforia.com and creating a new project.</string>
+          <string name="INIT_LICENSE_ERROR_INVALID_KEY">Invalid Key used. Please make sure you are using a valid Vuforia App Key.</string>
+          <string name="INIT_LICENSE_ERROR_NO_NETWORK_TRANSIENT">Unable to contact server. Please try again later.</string>
+          <string name="INIT_LICENSE_ERROR_NO_NETWORK_PERMANENT">No network available. Please make sure you are connected to the Internet.</string>
+          <string name="INIT_LICENSE_ERROR_CANCELED_KEY">This app license key has been canceled and may no longer be used. Please get a new license key.</string>
+          <string name="INIT_LICENSE_ERROR_PRODUCT_TYPE_MISMATCH">Vuforia App key is not valid for this product. Please get a valid key, by logging into your account at developer.vuforia.com and choosing the right product type during project creation.</string>
+          <string name="INIT_LICENSE_ERROR_UNKNOWN_ERROR">Failed to initialize Vuforia.</string>
+          <string name="INIT_OBJECT_DATASET_NOT_FOUND_TITLE">Database not found</string>
+          <string name="INIT_OBJECT_DATASET_NOT_FOUND">Please scan an object and load a database</string>
+      </config-file>
+
+      <framework src="com.android.support:support-v4:+" />
+      <framework src="com.android.support:appcompat-v7:+" />
+
+      <source-file src="src/android/vuforiaplugin" target-dir="src/com/cloudoki/" />
+      <source-file src="src/android/utils" target-dir="src/com/cloudoki/vuforiaplugin/" />
+      <source-file src="src/android/res/layout" target-dir="res/" />
+    </platform>
+
+    <dependency id="cordova-plugin-vuforia-sdk" version="1.x.x" />
+</plugin>
