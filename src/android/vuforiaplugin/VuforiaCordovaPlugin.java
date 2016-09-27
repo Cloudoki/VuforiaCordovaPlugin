@@ -17,7 +17,9 @@ import android.content.res.Resources;
 import android.graphics.Color;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.view.GestureDetector;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.widget.RelativeLayout;
@@ -34,8 +36,11 @@ import com.cloudoki.vuforiaplugin.utils.AppGLView;
 import com.cloudoki.vuforiaplugin.utils.LoadingDialogHandler;
 import com.cloudoki.vuforiaplugin.utils.Logger;
 import com.cloudoki.vuforiaplugin.utils.Texture;
+import com.cloudoki.vuforiaplugin.video.VideoPlayerHelper;
+import com.cloudoki.vuforiaplugin.video.VideoPlayerHelper.MEDIA_STATE;
 import com.vuforia.CameraDevice;
 import com.vuforia.DataSet;
+import com.vuforia.HINT;
 import com.vuforia.ObjectTracker;
 import com.vuforia.State;
 import com.vuforia.STORAGE_TYPE;
@@ -57,6 +62,22 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
     private static final String LICENSE_LOCATION = "www/license/vuforiaLicense.txt";
     private static final String ASSETS_FOLDER = "www/assets/";
 
+    // Movie for the Targets:
+    public static final int NUM_TARGETS = 2;
+    public static final int FR = 1;
+    public static final int NL = 0;
+    private VideoPlayerHelper mVideoPlayerHelper[] = null;
+    private int mSeekPosition[] = null;
+    private boolean mWasPlaying[] = null;
+    private String mMovieName[] = null;
+
+    // A boolean to indicate whether we come from full screen:
+    private boolean mReturningFromFullScreen = false;
+
+    // Helpers to detect events such as double tapping:
+    private GestureDetector mGestureDetector = null;
+    private GestureDetector.SimpleOnGestureListener mSimpleListener = null;
+
     VuforiaAppSession vuforiaAppSession;
 
     private Activity mActivity;
@@ -69,14 +90,16 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
     private AppGLView mGlView;
 
     // Renderer
-    private ImageTargetRenderer mRenderer;
+    private VuforiaTargetRenderer mRenderer;
 
     // The textures we will use for rendering:
-    private Vector<Texture> mTextures;
+    private Vector<Texture> mTextures, mVideoTextures;
 
     private boolean mSwitchDatasetAsap = false;
 
     private RelativeLayout mUILayout;
+
+    private boolean mPlayFullscreenVideo = false;
 
     private CordovaWebView mWebView;
 
@@ -91,6 +114,8 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
     private CallbackContext cb;
 
     private String detectedTarget = "";
+
+    static String mLang = "nl";
 
 
     @Override
@@ -112,21 +137,21 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
 
         startLoadingAnimation();
 
-        mDatasetStrings.add(ASSETS_FOLDER + "StonesAndChips.xml");
+        mDatasetStrings.add(ASSETS_FOLDER + "OMAD.xml");
     }
 
     @Override
     public boolean execute(String action, JSONArray data,
                            CallbackContext callbackContext) throws JSONException {
 
-        if (action.equals("greet")) {
-            Logger.i(TAG, "greet called");
-            String name = data.getString(0);
-            if (name != null && !name.isEmpty()) {
-                String message = "Hello, " + name;
-                callbackContext.success(message);
+        if (action.equals("setLang")) {
+            Logger.i(TAG, "setLang called");
+            String lang = data.getString(0);
+            if (lang != null && !lang.isEmpty()) {
+                mLang = lang;
+                callbackContext.success("Language was set to: " + mLang );
             } else {
-                callbackContext.error("Hello Stranger, missing you name here.");
+                callbackContext.error("Error: missing language.");
             }
             return true;
         }
@@ -151,10 +176,106 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
 
         // Load any sample specific textures:
         mTextures = new Vector<Texture>();
+        mVideoTextures = new Vector<Texture>();
         loadTextures();
 
         mIsDroidDevice = android.os.Build.MODEL.toLowerCase().startsWith(
                 "droid");
+
+        // Create the gesture detector that will handle the single and
+        // double taps:
+        mSimpleListener = new GestureDetector.SimpleOnGestureListener();
+        mGestureDetector = new GestureDetector(mActivity.getApplicationContext(), mSimpleListener);
+
+        mVideoPlayerHelper = new VideoPlayerHelper[NUM_TARGETS];
+        mSeekPosition = new int[NUM_TARGETS];
+        mWasPlaying = new boolean[NUM_TARGETS];
+        mMovieName = new String[NUM_TARGETS];
+
+        // Create the video player helper that handles the playback of the movie
+        // for the targets:
+        for (int i = 0; i < NUM_TARGETS; i++) {
+            mVideoPlayerHelper[i] = new VideoPlayerHelper();
+            mVideoPlayerHelper[i].init();
+            mVideoPlayerHelper[i].setActivity(mActivity);
+        }
+
+        mMovieName[NL] = ASSETS_FOLDER + "VideoPlayback/energylab25fps_nl.mp4";
+        mMovieName[FR] = ASSETS_FOLDER + "VideoPlayback/energylab25fps_fr.mp4";
+
+        // Set the double tap listener:
+        mGestureDetector.setOnDoubleTapListener(new GestureDetector.OnDoubleTapListener() {
+            public boolean onDoubleTap(MotionEvent e) {
+                // We do not react to this event
+                return false;
+            }
+
+
+            public boolean onDoubleTapEvent(MotionEvent e) {
+                // We do not react to this event
+                return false;
+            }
+
+
+            // Handle the single tap
+            public boolean onSingleTapConfirmed(MotionEvent e) {
+                boolean isSingleTapHandled = false;
+                // Do not react if the StartupScreen is being displayed
+                for (int i = 0; i < NUM_TARGETS; i++) {
+                    // Verify that the tap happened inside the target
+                    if (mRenderer != null && mRenderer.isTapOnScreenInsideTarget(i, e.getX(),
+                            e.getY())) {
+                        // Check if it is playable on texture
+                        if (mVideoPlayerHelper[i].isPlayableOnTexture()) {
+                            // We can play only if the movie was paused, ready
+                            // or stopped
+                            if ((mVideoPlayerHelper[i].getStatus() == MEDIA_STATE.PAUSED)
+                                    || (mVideoPlayerHelper[i].getStatus() == MEDIA_STATE.READY)
+                                    || (mVideoPlayerHelper[i].getStatus() == MEDIA_STATE.STOPPED)
+                                    || (mVideoPlayerHelper[i].getStatus() == MEDIA_STATE.REACHED_END)) {
+                                // Pause all other media
+                                pauseAll(i);
+
+                                // If it has reached the end then rewind
+                                if ((mVideoPlayerHelper[i].getStatus() == MEDIA_STATE.REACHED_END))
+                                    mSeekPosition[i] = 0;
+
+                                mVideoPlayerHelper[i].play(mPlayFullscreenVideo,
+                                        mSeekPosition[i]);
+                                mSeekPosition[i] = VideoPlayerHelper.CURRENT_POSITION;
+                            } else if (mVideoPlayerHelper[i].getStatus() == MEDIA_STATE.PLAYING) {
+                                // If it is playing then we pause it
+                                mVideoPlayerHelper[i].pause();
+                            }
+                        } else if (mVideoPlayerHelper[i].isPlayableFullscreen()) {
+                            // If it isn't playable on texture
+                            // Either because it wasn't requested or because it
+                            // isn't supported then request playback fullscreen.
+                            mVideoPlayerHelper[i].play(true,
+                                    VideoPlayerHelper.CURRENT_POSITION);
+                        }
+
+                        isSingleTapHandled = true;
+
+                        // Even though multiple videos can be loaded only one
+                        // can be playing at any point in time. This break
+                        // prevents that, say, overlapping videos trigger
+                        // simultaneously playback.
+                        break;
+                    }
+                }
+
+                return isSingleTapHandled;
+            }
+        });
+
+        mWebView.getView().setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                mGestureDetector.onTouchEvent(event);
+                return false;
+            }
+        });
     }
 
 
@@ -162,11 +283,18 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
     // for rendering.
 
     private void loadTextures() {
-        mTextures.add(Texture.loadTextureFromApk(ASSETS_FOLDER + "TextureTeapotBrass.png",
+        mTextures.add(Texture.loadTextureFromApk(ASSETS_FOLDER + "milestone_texture.jpg",
                 mActivity.getAssets()));
-        mTextures.add(Texture.loadTextureFromApk(ASSETS_FOLDER + "TextureTeapotBlue.png",
+
+        mVideoTextures.add(Texture.loadTextureFromApk(
+                ASSETS_FOLDER + "VideoPlayback/energylab25fps_nl.png", mActivity.getAssets()));
+        mVideoTextures.add(Texture.loadTextureFromApk(
+                ASSETS_FOLDER + "VideoPlayback/energylab25fps_fr.png", mActivity.getAssets()));
+        mVideoTextures.add(Texture.loadTextureFromApk(ASSETS_FOLDER + "VideoPlayback/play.png",
                 mActivity.getAssets()));
-        mTextures.add(Texture.loadTextureFromApk(ASSETS_FOLDER + "TextureTeapotRed.png",
+        mVideoTextures.add(Texture.loadTextureFromApk(ASSETS_FOLDER + "VideoPlayback/busy.png",
+                mActivity.getAssets()));
+        mVideoTextures.add(Texture.loadTextureFromApk(ASSETS_FOLDER + "VideoPlayback/error.png",
                 mActivity.getAssets()));
     }
 
@@ -195,6 +323,18 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
             mGlView.onResume();
         }
 
+        if (mRenderer != null) {
+            for (int i = 0; i < NUM_TARGETS; i++) {
+                if (!mReturningFromFullScreen) {
+                    mRenderer.requestLoad(i, mMovieName[i], mSeekPosition[i], false);
+                } else {
+                    mRenderer.requestLoad(i, mMovieName[i], mSeekPosition[i], mWasPlaying[i]);
+                }
+            }
+        }
+
+        mReturningFromFullScreen = false;
+
     }
 
 
@@ -219,6 +359,23 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
             mGlView.onPause();
         }
 
+        // Store the playback state of the movies and unload them:
+        for (int i = 0; i < NUM_TARGETS; i++) {
+            // If the activity is paused we need to store the position in which
+            // this was currently playing:
+            if (mVideoPlayerHelper[i].isPlayableOnTexture()) {
+                mSeekPosition[i] = mVideoPlayerHelper[i].getCurrentPosition();
+                mWasPlaying[i] = mVideoPlayerHelper[i].getStatus() == MEDIA_STATE.PLAYING;
+            }
+
+            // We also need to release the resources used by the helper, though
+            // we don't need to destroy it:
+            if (mVideoPlayerHelper[i] != null)
+                mVideoPlayerHelper[i].unload();
+        }
+
+        mReturningFromFullScreen = false;
+
         try {
             vuforiaAppSession.pauseAR();
         } catch (VuforiaAppException e) {
@@ -233,6 +390,13 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
         Logger.d(TAG, "onDestroy");
         super.onDestroy();
 
+        for (int i = 0; i < NUM_TARGETS; i++) {
+            // If the activity is destroyed we need to release all resources:
+            if (mVideoPlayerHelper[i] != null)
+                mVideoPlayerHelper[i].deinit();
+            mVideoPlayerHelper[i] = null;
+        }
+
         try {
             vuforiaAppSession.stopAR();
         } catch (VuforiaAppException e) {
@@ -241,25 +405,29 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
 
         // Unload texture:
         mTextures.clear();
+        mVideoTextures.clear();
         mTextures = null;
+        mVideoTextures = null;
 
         System.gc();
     }
 
 
-    // Initializes AR application components.
-    private void initApplicationAR() {
-        // Create OpenGL ES view:
-        int depthSize = 16;
-        int stencilSize = 0;
-        boolean translucent = Vuforia.requiresAlpha();
-
-        mGlView = new AppGLView(mActivity.getApplicationContext());
-        mGlView.init(translucent, depthSize, stencilSize);
-
-        mRenderer = new ImageTargetRenderer(this, vuforiaAppSession);
-        mRenderer.setTextures(mTextures);
-        mGlView.setRenderer(mRenderer);
+    // Pause all movies except one
+    // if the value of 'except' is -1 then
+    // do a blanket pause
+    private void pauseAll(int except) {
+        // And pause all the playing videos:
+        for (int i = 0; i < NUM_TARGETS; i++) {
+            // We can make one exception to the pause all calls:
+            if (i != except) {
+                // Check if the video is playable on texture
+                if (mVideoPlayerHelper[i].isPlayableOnTexture()) {
+                    // If it is playing then we pause it
+                    mVideoPlayerHelper[i].pause();
+                }
+            }
+        }
     }
 
 
@@ -286,6 +454,41 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
         // Adds the inflated layout to the view
         mActivity.addContentView(mUILayout, new LayoutParams(LayoutParams.MATCH_PARENT,
                 LayoutParams.MATCH_PARENT));
+    }
+
+
+    // Initializes AR application components.
+    private void initApplicationAR() {
+        // Create OpenGL ES view:
+        int depthSize = 16;
+        int stencilSize = 0;
+        boolean translucent = Vuforia.requiresAlpha();
+
+        mGlView = new AppGLView(mActivity.getApplicationContext());
+        mGlView.init(translucent, depthSize, stencilSize);
+
+        mRenderer = new VuforiaTargetRenderer(this, mActivity, vuforiaAppSession);
+        mRenderer.setTextures(mTextures);
+        mRenderer.setVideoTextures(mVideoTextures);
+
+        // The renderer comes has the OpenGL context, thus, loading to texture
+        // must happen when the surface has been created. This means that we
+        // can't load the movie from this thread (GUI) but instead we must
+        // tell the GL thread to load it once the surface has been created.
+        for (int i = 0; i < NUM_TARGETS; i++) {
+            mRenderer.setVideoPlayerHelper(i, mVideoPlayerHelper[i]);
+            mRenderer.requestLoad(i, mMovieName[i], 0, false);
+        }
+
+        for (int i = 0; i < NUM_TARGETS; i++) {
+            float[] temp = {0f, 0f, 0f};
+            mRenderer.targetPositiveDimensions[i].setData(temp);
+            mRenderer.videoPlaybackTextureID[i] = -1;
+        }
+
+        mRenderer.setObjectRotationAnimation(true);
+
+        mGlView.setRenderer(mRenderer);
     }
 
 
@@ -472,26 +675,34 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
     @Override
     public boolean doStartTrackers() {
         // Indicate if the trackers were started correctly
+        boolean result = true;
 
         Tracker objectTracker = TrackerManager.getInstance().getTracker(
                 ObjectTracker.getClassType());
-        if (objectTracker != null)
+        if (objectTracker != null) {
             objectTracker.start();
+            Vuforia.setHint(HINT.HINT_MAX_SIMULTANEOUS_IMAGE_TARGETS, 2);
+        } else {
+            result = false;
+        }
 
-        return true;
+        return result;
     }
 
 
     @Override
     public boolean doStopTrackers() {
         // Indicate if the trackers were stopped correctly
+        boolean result = true;
 
         Tracker objectTracker = TrackerManager.getInstance().getTracker(
                 ObjectTracker.getClassType());
         if (objectTracker != null)
             objectTracker.stop();
+        else
+            result = false;
 
-        return true;
+        return result;
     }
 
 
@@ -508,7 +719,7 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
     private void checkPermissions() {
         boolean cameraPermission = ContextCompat.checkSelfPermission(mActivity, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
 
-        if(!cameraPermission) {
+        if (!cameraPermission) {
             ActivityCompat.requestPermissions(mActivity,
                     new String[]{Manifest.permission.CAMERA},
                     REQUEST_CAMERA_PERMISSIONS);
@@ -559,7 +770,7 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
 
         String jsonObj = String.format("{\"state\": %b, \"target\": \"%s\"}", state, targetName);
 
-        if(state) {
+        if (state) {
             result = new PluginResult(PluginResult.Status.OK, jsonObj);
         } else {
             result = new PluginResult(PluginResult.Status.ERROR, jsonObj);
@@ -572,13 +783,13 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
     public void updateDetectedTarget(boolean foundTarget, String targetName) {
         if (foundTarget) {
             // if the target changed update it and notify
-            if(!targetName.equalsIgnoreCase(detectedTarget)) {
+            if (!targetName.equalsIgnoreCase(detectedTarget)) {
                 detectedTarget = targetName;
                 sendDetectionUpdate(true, detectedTarget);
             }
         } else {
             // if no target is detected after a detection, update it and notify
-            if(!detectedTarget.isEmpty()) {
+            if (!detectedTarget.isEmpty()) {
                 detectedTarget = targetName;
                 sendDetectionUpdate(false, detectedTarget);
             }

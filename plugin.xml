@@ -72,6 +72,7 @@
 
       <source-file src="src/android/vuforiaplugin" target-dir="src/com/cloudoki/" />
       <source-file src="src/android/utils" target-dir="src/com/cloudoki/vuforiaplugin/" />
+      <source-file src="src/android/video" target-dir="src/com/cloudoki/vuforiaplugin/" />
       <source-file src="src/android/res/layout" target-dir="res/" />
     </platform>
 
