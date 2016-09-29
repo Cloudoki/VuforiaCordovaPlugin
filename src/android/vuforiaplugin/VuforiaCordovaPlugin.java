@@ -9,14 +9,16 @@ import java.util.Vector;
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.graphics.Color;
+import android.os.Build;
 import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
 import android.view.GestureDetector;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -116,6 +118,8 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
     private String detectedTarget = "";
 
     static String mLang = "nl";
+    private boolean mAllPermissions = false;
+    private boolean mCalledPermissions = false;
 
 
     @Override
@@ -129,15 +133,9 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
 
         loadingDialogHandler = new LoadingDialogHandler(mActivity);
 
-        checkPermissions();
-
-        String vuforiaLicense = loadLicence();
-
-        vuforiaAppSession = new VuforiaAppSession(this, vuforiaLicense);
-
         startLoadingAnimation();
 
-        mDatasetStrings.add(ASSETS_FOLDER + "OMAD.xml");
+        checkPermissions();
     }
 
     @Override
@@ -171,8 +169,14 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
         super.onStart();
         Logger.i(TAG, "onStart(): Activity starting");
 
-        vuforiaAppSession
-                .initAR(mActivity, ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+        String vuforiaLicense = loadLicence();
+
+        vuforiaAppSession = new VuforiaAppSession(this, vuforiaLicense);
+
+        mDatasetStrings.add(ASSETS_FOLDER + "OMAD.xml");
+
+        if(!vuforiaAppSession.isInitialized())
+            vuforiaAppSession.initAR(mActivity, ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
 
         // Load any sample specific textures:
         mTextures = new Vector<Texture>();
@@ -305,6 +309,8 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
         Logger.d(TAG, "onResume");
         super.onResume(multitasking);
 
+        checkPermissions();
+
         // This is needed for some Droid devices to force portrait
         if (mIsDroidDevice) {
             mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
@@ -390,11 +396,13 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
         Logger.d(TAG, "onDestroy");
         super.onDestroy();
 
-        for (int i = 0; i < NUM_TARGETS; i++) {
-            // If the activity is destroyed we need to release all resources:
-            if (mVideoPlayerHelper[i] != null)
-                mVideoPlayerHelper[i].deinit();
-            mVideoPlayerHelper[i] = null;
+        if(mVideoPlayerHelper != null) {
+            for (int i = 0; i < NUM_TARGETS; i++) {
+                // If the activity is destroyed we need to release all resources:
+                if (mVideoPlayerHelper[i] != null)
+                    mVideoPlayerHelper[i].deinit();
+                mVideoPlayerHelper[i] = null;
+            }
         }
 
         try {
@@ -404,8 +412,10 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
         }
 
         // Unload texture:
-        mTextures.clear();
-        mVideoTextures.clear();
+        if(mTextures != null)
+            mTextures.clear();
+        if(mVideoTextures != null)
+            mVideoTextures.clear();
         mTextures = null;
         mVideoTextures = null;
 
@@ -534,21 +544,25 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
         // Indicate if the trackers were unloaded correctly
         boolean result = true;
 
-        TrackerManager tManager = TrackerManager.getInstance();
-        ObjectTracker objectTracker = (ObjectTracker) tManager
-                .getTracker(ObjectTracker.getClassType());
-        if (objectTracker == null)
-            return false;
+        try{
+            TrackerManager tManager = TrackerManager.getInstance();
+            ObjectTracker objectTracker = (ObjectTracker) tManager
+                    .getTracker(ObjectTracker.getClassType());
+            if (objectTracker == null)
+                return false;
 
-        if (mCurrentDataset != null && mCurrentDataset.isActive()) {
-            if (objectTracker.getActiveDataSet().equals(mCurrentDataset)
-                    && !objectTracker.deactivateDataSet(mCurrentDataset)) {
-                result = false;
-            } else if (!objectTracker.destroyDataSet(mCurrentDataset)) {
-                result = false;
+            if (mCurrentDataset != null && mCurrentDataset.isActive()) {
+                if (objectTracker.getActiveDataSet().equals(mCurrentDataset)
+                        && !objectTracker.deactivateDataSet(mCurrentDataset)) {
+                    result = false;
+                } else if (!objectTracker.destroyDataSet(mCurrentDataset)) {
+                    result = false;
+                }
+
+                mCurrentDataset = null;
             }
-
-            mCurrentDataset = null;
+        } catch (RuntimeException e) {
+            return false;
         }
 
         return result;
@@ -709,31 +723,47 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
     @Override
     public boolean doDeinitTrackers() {
         // Indicate if the trackers were deinitialized correctly
-
-        TrackerManager tManager = TrackerManager.getInstance();
-        tManager.deinitTracker(ObjectTracker.getClassType());
+        try{
+            TrackerManager tManager = TrackerManager.getInstance();
+            tManager.deinitTracker(ObjectTracker.getClassType());
+        } catch (RuntimeException e) {
+            return false;
+        }
 
         return true;
     }
 
     private void checkPermissions() {
-        boolean cameraPermission = ContextCompat.checkSelfPermission(mActivity, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
+        if (Build.VERSION.SDK_INT >= 23) {
+            boolean cameraPermission = ActivityCompat.checkSelfPermission(mActivity, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
+            boolean storagePermission = ActivityCompat.checkSelfPermission(mActivity, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
 
-        if (!cameraPermission) {
-            ActivityCompat.requestPermissions(mActivity,
-                    new String[]{Manifest.permission.CAMERA},
-                    REQUEST_CAMERA_PERMISSIONS);
-        }
+//        if (!cameraPermission) {
+//            ActivityCompat.requestPermissions(mActivity,
+//                    new String[]{Manifest.permission.CAMERA},
+//                    REQUEST_CAMERA_PERMISSIONS);
+//        }
+//
+//        if (!storagePermission) {
+//            // We don't have permission so prompt the user
+//            ActivityCompat.requestPermissions(
+//                    mActivity,
+//                    PERMISSIONS_STORAGE,
+//                    REQUEST_EXTERNAL_STORAGE
+//            );
+//        }
 
-        int permission = ActivityCompat.checkSelfPermission(mActivity, Manifest.permission.WRITE_EXTERNAL_STORAGE);
+            mAllPermissions = cameraPermission && storagePermission;
 
-        if (permission != PackageManager.PERMISSION_GRANTED) {
-            // We don't have permission so prompt the user
-            ActivityCompat.requestPermissions(
-                    mActivity,
-                    PERMISSIONS_STORAGE,
-                    REQUEST_EXTERNAL_STORAGE
-            );
+            if (!mAllPermissions && !mCalledPermissions) {
+                mCalledPermissions = true;
+                Context context = mActivity.getApplicationContext();
+                Intent intent = new Intent(context, PermissionsRequester.class);
+                mActivity.startActivity(intent);
+            }
+        } else { //permission is automatically granted on sdk<23 upon installation
+            Logger.i(TAG, "Permission is already granted");
+
         }
     }
 
@@ -768,7 +798,17 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
         // plugin result
         PluginResult result;
 
-        String jsonObj = String.format("{\"state\": %b, \"target\": \"%s\"}", state, targetName);
+        int index = 0;
+
+        if(targetName.equalsIgnoreCase("tia")) {
+            index = 0;
+        } else if(targetName.equalsIgnoreCase("kids")) {
+            index = 1;
+        } else if(targetName.equalsIgnoreCase("tombstone")) {
+            index = 2;
+        }
+
+        String jsonObj = String.format("{\"state\": %b, \"target\": \"%s\", \"index\": \"%d\"}", state, targetName, index);
 
         if (state) {
             result = new PluginResult(PluginResult.Status.OK, jsonObj);

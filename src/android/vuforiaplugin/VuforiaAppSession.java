@@ -677,4 +677,8 @@ public class VuforiaAppSession implements UpdateCallbackInterface {
     {
         return mStarted;
     }
+
+    public boolean isInitialized() {
+        return mInitVuforiaTask != null;
+    }
 }
