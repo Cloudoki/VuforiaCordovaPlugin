@@ -28,9 +28,13 @@ Add the folder `assest/` in your project `www/` folder and put your 3D and video
 ## Usage
 The plugin offers the functions `isDetecting` and `setLang`.
 
-**`isDetecting`** - the plugin will callback on success function if detecting the pattern or on error function if it's not. The response will also say what index of the patters set is being detected in a JSON object. Just parse it using `JSON.parse()`.
+**`isDetecting`** - the plugin will callback on success function if detecting the pattern or on error function if it's not. The response will also say the name of the pattern that is being detected in a JSON object. Just parse it using `JSON.parse()`.
 ```javascript
 isDetecting(successCallback, errorCallback);
+```
+**Response:**
+```javascript
+{"state": true or false, "target": "pattern_name" or ""}
 ```
 
 **`setLang`** - this function will set a language in case you have Augmented Reality content that should be displayed in different languages. The file should be name with the language locale ("en") "filename_en.mp4" and when it's set it should load the file with the selected language.
