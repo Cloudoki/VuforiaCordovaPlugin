@@ -55,12 +55,6 @@ import com.vuforia.Vuforia;
 public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppControl {
 
     private static final String TAG = "VuforiaCordovaPlugin";
-    private static final int REQUEST_CAMERA_PERMISSIONS = 98;
-    private static final int REQUEST_EXTERNAL_STORAGE = 99;
-    private String[] PERMISSIONS_STORAGE = {
-            Manifest.permission.READ_EXTERNAL_STORAGE,
-            Manifest.permission.WRITE_EXTERNAL_STORAGE
-    };
     private static final String LICENSE_LOCATION = "www/license/vuforiaLicense.txt";
     private static final String ASSETS_FOLDER = "www/assets/";
 
@@ -118,8 +112,9 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
     private String detectedTarget = "";
 
     static String mLang = "nl";
-    private boolean mAllPermissions = false;
     private boolean mCalledPermissions = false;
+
+    private boolean playOnDetection = true;
 
 
     @Override
@@ -151,6 +146,14 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
             } else {
                 callbackContext.error("Error: missing language.");
             }
+            return true;
+        }
+
+        if (action.equals("autoPlay")) {
+            Logger.i(TAG, "autoPlay called");
+            boolean autoplay = data.getBoolean(0);
+            playOnDetection = autoplay;
+            callbackContext.success("Auto-play was set to: " + autoplay );
             return true;
         }
 
@@ -738,22 +741,7 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
             boolean cameraPermission = ActivityCompat.checkSelfPermission(mActivity, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
             boolean storagePermission = ActivityCompat.checkSelfPermission(mActivity, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
 
-//        if (!cameraPermission) {
-//            ActivityCompat.requestPermissions(mActivity,
-//                    new String[]{Manifest.permission.CAMERA},
-//                    REQUEST_CAMERA_PERMISSIONS);
-//        }
-//
-//        if (!storagePermission) {
-//            // We don't have permission so prompt the user
-//            ActivityCompat.requestPermissions(
-//                    mActivity,
-//                    PERMISSIONS_STORAGE,
-//                    REQUEST_EXTERNAL_STORAGE
-//            );
-//        }
-
-            mAllPermissions = cameraPermission && storagePermission;
+            boolean mAllPermissions = cameraPermission && storagePermission;
 
             if (!mAllPermissions && !mCalledPermissions) {
                 mCalledPermissions = true;
@@ -821,18 +809,24 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
     }
 
     public void updateDetectedTarget(boolean foundTarget, String targetName) {
-        if (foundTarget) {
-            // if the target changed update it and notify
-            if (!targetName.equalsIgnoreCase(detectedTarget)) {
-                detectedTarget = targetName;
-                sendDetectionUpdate(true, detectedTarget);
-            }
-        } else {
-            // if no target is detected after a detection, update it and notify
-            if (!detectedTarget.isEmpty()) {
-                detectedTarget = targetName;
-                sendDetectionUpdate(false, detectedTarget);
+        if(cb != null) {
+            if (foundTarget) {
+                // if the target changed update it and notify
+                if (!targetName.equalsIgnoreCase(detectedTarget)) {
+                    detectedTarget = targetName;
+                    sendDetectionUpdate(true, detectedTarget);
+                }
+            } else {
+                // if no target is detected after a detection, update it and notify
+                if (!detectedTarget.isEmpty()) {
+                    detectedTarget = targetName;
+                    sendDetectionUpdate(false, detectedTarget);
+                }
             }
         }
+    }
+
+    public boolean getAutoPlayState() {
+        return playOnDetection;
     }
 }

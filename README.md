@@ -42,9 +42,16 @@ isDetecting(successCallback, errorCallback);
 setLang(language, successCallback, errorCallback);
 ```
 
+**`autoPlay`** - this function will set a video you have available in the Augmented Reality content to automatically start to play.
+```javascript
+autoPlay(true or false, successCallback, errorCallback);
+```
+- **default**: auto-play is turned on.
+
 ## Usage example
 ```javascript
   var _vuforiaCordovaPlugin = window.plugins.VuforiaCordovaPlugin || new VuforiaCordovaPlugin();
   _vuforiaCordovaPlugin.isDetecting(function(success){console.log(success);}, function(error){console.log(error);});
   _vuforiaCordovaPlugin.setLang("en", function(success){console.log(success);}, function(error){console.log(error);});
+  _vuforiaCordovaPlugin.autoPlay(true, function(success){console.log(success);}, function(error){console.log(error);});
 ```

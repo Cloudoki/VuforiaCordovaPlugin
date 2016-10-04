@@ -66,7 +66,6 @@ public class VuforiaTargetRenderer implements GLSurfaceView.Renderer, AppRendere
     private AppRenderer mAppRenderer;
 
     private Teapot mTeapot;
-    // private Tombstone mTomstone;
     private ObjectParser mModel;
 
     private Renderer mRenderer;
@@ -257,6 +256,32 @@ public class VuforiaTargetRenderer implements GLSurfaceView.Renderer, AppRendere
         for (int i = 0; i < NUM_TARGETS; i++) {
             if (mVideoPlayerHelper[i] != null) {
                 if (mVideoPlayerHelper[i].isPlayableOnTexture()) {
+                    if(isTracking(i) && mVuforiaCordovaPlugin.getAutoPlayState()) {
+                        if ((mVideoPlayerHelper[i].getStatus() == VideoPlayerHelper.MEDIA_STATE.PAUSED)
+                                || (mVideoPlayerHelper[i].getStatus() == VideoPlayerHelper.MEDIA_STATE.READY)
+                                || (mVideoPlayerHelper[i].getStatus() == VideoPlayerHelper.MEDIA_STATE.STOPPED)
+                                || (mVideoPlayerHelper[i].getStatus() == VideoPlayerHelper.MEDIA_STATE.REACHED_END)) {
+                            // Pause all other media
+                            for (int j = 0; j < NUM_TARGETS; j++) {
+                                // We can make one exception to the pause all calls:
+                                if (j != i) {
+                                    // Check if the video is playable on texture
+                                    if (mVideoPlayerHelper[j].isPlayableOnTexture()) {
+                                        // If it is playing then we pause it
+                                        mVideoPlayerHelper[j].pause();
+                                    }
+                                }
+                            }
+
+                            // If it has reached the end then rewind
+                            if ((mVideoPlayerHelper[i].getStatus() == VideoPlayerHelper.MEDIA_STATE.REACHED_END))
+                                mSeekPosition[i] = 0;
+
+                            mVideoPlayerHelper[i].play(false, mSeekPosition[i]);
+                            mSeekPosition[i] = VideoPlayerHelper.CURRENT_POSITION;
+                        }
+                    }
+
                     // First we need to update the video data. This is a built
                     // in Android call
                     // Here, the decoded data is uploaded to the OES texture
@@ -590,9 +615,13 @@ public class VuforiaTargetRenderer implements GLSurfaceView.Renderer, AppRendere
                 Matrix.translateM(modelViewMatrix, 0, 0.0f, 0.0f,
                         OBJECT_SCALE_FLOAT);
 
+                // set tombstone orientation
+                float rotationAngle = 90.0f, activeAxis = 1.0f, inactiveAxis = 0.0f;
+                Matrix.rotateM(modelViewMatrix, 0, -rotationAngle, -activeAxis, inactiveAxis, inactiveAxis);
+
                 if(mRotate) {
                     mAngle -= 1.0f;
-                    Matrix.rotateM(modelViewMatrix, 0, mAngle, 0.0f, mAngle, 1.0f);
+                    Matrix.rotateM(modelViewMatrix, 0, mAngle, inactiveAxis, activeAxis, inactiveAxis);
                 }
 
                 Matrix.scaleM(modelViewMatrix, 0, OBJECT_SCALE_FLOAT,
@@ -681,7 +710,8 @@ public class VuforiaTargetRenderer implements GLSurfaceView.Renderer, AppRendere
             // We store the modelview matrix to be used later by the tap
             // calculation
             if (imageTarget.getName().compareTo("tia") == 0) {
-                currentTarget = VuforiaCordovaPlugin.mLang.equalsIgnoreCase("nl") ? VuforiaCordovaPlugin.NL : VuforiaCordovaPlugin.FR;
+                currentTarget = VuforiaCordovaPlugin.mLang.equalsIgnoreCase("nl") ?
+                        VuforiaCordovaPlugin.NL : VuforiaCordovaPlugin.FR;
 
                 modelViewMatrix[currentTarget] = Tool
                         .convertPose2GLMatrix(trackableResult.getPose());

@@ -11,6 +11,11 @@ VuforiaCordovaPlugin.prototype.setLang = function (lang, successCallback, errorC
   cordova.exec(successCallback, errorCallback, "VuforiaCordovaPlugin", "setLang", [lang]);
 };
 
+VuforiaCordovaPlugin.prototype.autoPlay = function (autoplay, successCallback, errorCallback) {
+  var autoplayOption = autoplay ? true : false;
+  cordova.exec(successCallback, errorCallback, "VuforiaCordovaPlugin", "autoPlay", [autoplayOption]);
+};
+
 if (!window.plugins) {
   window.plugins = {};
 }
