@@ -7,7 +7,7 @@ Vuforia is a trademark of PTC Inc., registered in the United States and other
 countries.
 ===============================================================================*/
 
-package com.cloudoki.vuforiaplugin;
+package com.cloudoki.vuforiacordovaplugin;
 
 import com.vuforia.State;
 

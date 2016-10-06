@@ -7,7 +7,7 @@ Vuforia is a trademark of PTC Inc., registered in the United States and other
 countries.
 ===============================================================================*/
 
-package com.cloudoki.vuforiaplugin.video;
+package com.cloudoki.vuforiacordovaplugin.video;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
@@ -22,7 +22,7 @@ import android.view.Surface;
 
 import java.util.concurrent.locks.ReentrantLock;
 
-import com.cloudoki.vuforiaplugin.utils.Logger;
+import com.cloudoki.vuforiacordovaplugin.utils.Logger;
 
 
 // Helper class for video playback functionality

@@ -1,4 +1,4 @@
-package com.cloudoki.vuforiaplugin.utils;
+package com.cloudoki.vuforiacordovaplugin.utils;
 
 import android.content.res.AssetManager;
 

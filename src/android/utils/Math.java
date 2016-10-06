@@ -1,4 +1,4 @@
-package com.cloudoki.vuforiaplugin.utils;
+package com.cloudoki.vuforiacordovaplugin.utils;
 
 import com.vuforia.Matrix44F;
 import com.vuforia.Renderer;

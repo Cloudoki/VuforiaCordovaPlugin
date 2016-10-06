@@ -1,4 +1,4 @@
-package com.cloudoki.vuforiaplugin;
+package com.cloudoki.vuforiacordovaplugin;
 
 import android.Manifest;
 import android.app.Activity;

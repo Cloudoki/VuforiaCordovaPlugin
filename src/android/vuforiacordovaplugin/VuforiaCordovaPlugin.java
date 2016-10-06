@@ -1,4 +1,4 @@
-package com.cloudoki.vuforiaplugin;
+package com.cloudoki.vuforiacordovaplugin;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -34,12 +34,12 @@ import org.apache.cordova.PluginResult;
 import org.json.JSONArray;
 import org.json.JSONException;
 
-import com.cloudoki.vuforiaplugin.utils.AppGLView;
-import com.cloudoki.vuforiaplugin.utils.LoadingDialogHandler;
-import com.cloudoki.vuforiaplugin.utils.Logger;
-import com.cloudoki.vuforiaplugin.utils.Texture;
-import com.cloudoki.vuforiaplugin.video.VideoPlayerHelper;
-import com.cloudoki.vuforiaplugin.video.VideoPlayerHelper.MEDIA_STATE;
+import com.cloudoki.vuforiacordovaplugin.utils.AppGLView;
+import com.cloudoki.vuforiacordovaplugin.utils.LoadingDialogHandler;
+import com.cloudoki.vuforiacordovaplugin.utils.Logger;
+import com.cloudoki.vuforiacordovaplugin.utils.Texture;
+import com.cloudoki.vuforiacordovaplugin.video.VideoPlayerHelper;
+import com.cloudoki.vuforiacordovaplugin.video.VideoPlayerHelper.MEDIA_STATE;
 import com.vuforia.CameraDevice;
 import com.vuforia.DataSet;
 import com.vuforia.HINT;

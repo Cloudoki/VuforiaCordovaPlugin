@@ -7,7 +7,7 @@ Vuforia is a trademark of PTC Inc., registered in the United States and other
 countries.
 ===============================================================================*/
 
-package com.cloudoki.vuforiaplugin;
+package com.cloudoki.vuforiacordovaplugin;
 
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
@@ -23,17 +23,17 @@ import android.os.SystemClock;
 import android.util.DisplayMetrics;
 import android.widget.Toast;
 
-import com.cloudoki.vuforiaplugin.utils.CubeShaders;
-import com.cloudoki.vuforiaplugin.utils.LoadingDialogHandler;
-import com.cloudoki.vuforiaplugin.utils.Logger;
-import com.cloudoki.vuforiaplugin.utils.Math;
-import com.cloudoki.vuforiaplugin.utils.ObjectParser;
-import com.cloudoki.vuforiaplugin.utils.Teapot;
-import com.cloudoki.vuforiaplugin.utils.Texture;
-import com.cloudoki.vuforiaplugin.utils.Utils;
-import com.cloudoki.vuforiaplugin.video.KeyFrameShaders;
-import com.cloudoki.vuforiaplugin.video.VideoPlaybackShaders;
-import com.cloudoki.vuforiaplugin.video.VideoPlayerHelper;
+import com.cloudoki.vuforiacordovaplugin.utils.CubeShaders;
+import com.cloudoki.vuforiacordovaplugin.utils.LoadingDialogHandler;
+import com.cloudoki.vuforiacordovaplugin.utils.Logger;
+import com.cloudoki.vuforiacordovaplugin.utils.Math;
+import com.cloudoki.vuforiacordovaplugin.utils.ObjectParser;
+import com.cloudoki.vuforiacordovaplugin.utils.Teapot;
+import com.cloudoki.vuforiacordovaplugin.utils.Texture;
+import com.cloudoki.vuforiacordovaplugin.utils.Utils;
+import com.cloudoki.vuforiacordovaplugin.video.KeyFrameShaders;
+import com.cloudoki.vuforiacordovaplugin.video.VideoPlaybackShaders;
+import com.cloudoki.vuforiacordovaplugin.video.VideoPlayerHelper;
 import com.vuforia.Device;
 import com.vuforia.ImageTarget;
 import com.vuforia.Matrix44F;
@@ -257,6 +257,7 @@ public class VuforiaTargetRenderer implements GLSurfaceView.Renderer, AppRendere
             if (mVideoPlayerHelper[i] != null) {
                 if (mVideoPlayerHelper[i].isPlayableOnTexture()) {
                     if(isTracking(i) && mVuforiaCordovaPlugin.getAutoPlayState()) {
+                        // auto-play video if target is being detected
                         if ((mVideoPlayerHelper[i].getStatus() == VideoPlayerHelper.MEDIA_STATE.PAUSED)
                                 || (mVideoPlayerHelper[i].getStatus() == VideoPlayerHelper.MEDIA_STATE.READY)
                                 || (mVideoPlayerHelper[i].getStatus() == VideoPlayerHelper.MEDIA_STATE.STOPPED)
