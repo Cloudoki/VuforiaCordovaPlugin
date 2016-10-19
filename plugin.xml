@@ -5,11 +5,11 @@
     version="0.0.1">
     <name>Vuforia Cordova Plugin</name>
 
-    <description>...</description>
+    <description>A plugin implementation of vuforia for cordova.</description>
 
     <author>Délio Amaral</author>
 
-    <keywords></keywords>
+    <keywords>cordova, vuforia</keywords>
 
     <repo>https://github.com/</repo>
 
@@ -93,5 +93,64 @@
       <source-file src="src/android/libs/build-extras.gradle" target-dir="." />
     </platform>
 
-    <dependency id="cordova-plugin-vuforia-sdk" version="1.x.x" />
+    <!-- iOS -->
+    <platform name="ios">
+      <config-file target="config.xml" parent="/*">
+        <feature name="VuforiaCordovaPlugin">
+          <param name="ios-package" value="VuforiaCordovaPlugin" />
+          <param name="onload" value="true" />
+        </feature>
+      </config-file>
+
+      <!-- <header-file src="src/ios/AppDelegate+gesture.h" target-dir="." /> -->
+      <source-file src="src/ios/AppDelegate+gesture.m" target-dir="." />
+      <header-file src="src/ios/AppRenderer.h" target-dir="." />
+      <source-file src="src/ios/AppRenderer.mm" target-dir="." compiler-flags="-fno-objc-arc" />
+      <header-file src="src/ios/milestone.h" target-dir="." />
+      <header-file src="src/ios/Quad.h" target-dir="." />
+      <header-file src="src/ios/SampleApplication3DModel.h" target-dir="." />
+      <source-file src="src/ios/SampleApplication3DModel.m" target-dir="." />
+      <!-- <header-file src="src/ios/Teapot.h" target-dir="." /> -->
+      <header-file src="src/ios/Texture.h" target-dir="." />
+      <source-file src="src/ios/Texture.mm" target-dir="." compiler-flags="-fno-objc-arc" />
+      <header-file src="src/ios/VideoPlayerHelper.h" target-dir="." />
+      <source-file src="src/ios/VideoPlayerHelper.mm" target-dir="." compiler-flags="-fno-objc-arc" />
+      <header-file src="src/ios/VuforiaAppSession.h" target-dir="." />
+      <source-file src="src/ios/VuforiaAppSession.mm" target-dir="." compiler-flags="-fno-objc-arc" />
+      <header-file src="src/ios/VuforiaAppShaderUtils.h" target-dir="." />
+      <source-file src="src/ios/VuforiaAppShaderUtils.m" target-dir="." />
+      <header-file src="src/ios/VuforiaAppUtils.h" target-dir="." />
+      <source-file src="src/ios/VuforiaAppUtils.cpp" target-dir="." />
+      <header-file src="src/ios/VuforiaCordovaPlugin.h" target-dir="." />
+      <source-file src="src/ios/VuforiaCordovaPlugin.mm" target-dir="." compiler-flags="-fno-objc-arc" />
+      <header-file src="src/ios/VuforiaEAGLView.h" target-dir="." />
+      <source-file src="src/ios/VuforiaEAGLView.mm" target-dir="." compiler-flags="-fno-objc-arc" />
+      <header-file src="src/ios/VuforiaGLResourceHandler.h" target-dir="." />
+      <header-file src="src/ios/VuforiaMath.h" target-dir="." />
+      <source-file src="src/ios/VuforiaMath.cpp" target-dir="." />
+      <header-file src="src/ios/VuforiaViewController.h" target-dir="." />
+      <source-file src="src/ios/VuforiaViewController.mm" target-dir="." compiler-flags="-fno-objc-arc" />
+
+
+      <resource-file src="src/ios/shaders/Background.fragsh" target-dir="com.cloudoki.vuforiacordovaplugin" />
+      <resource-file src="src/ios/shaders/Background.vertsh" target-dir="com.cloudoki.vuforiacordovaplugin" />
+      <resource-file src="src/ios/shaders/Line.fragsh" target-dir="com.cloudoki.vuforiacordovaplugin" />
+      <resource-file src="src/ios/shaders/Line.vertsh" target-dir="com.cloudoki.vuforiacordovaplugin" />
+      <resource-file src="src/ios/shaders/Simple.fragsh" target-dir="com.cloudoki.vuforiacordovaplugin" />
+      <resource-file src="src/ios/shaders/Simple.vertsh" target-dir="com.cloudoki.vuforiacordovaplugin" />
+      <resource-file src="src/ios/shaders/SimpleWithColor.fragsh" target-dir="com.cloudoki.vuforiacordovaplugin" />
+
+      <!-- Frameworks need for video playback -->
+      <framework src="AudioToolbox.framework" />
+      <framework src="MediaPlayer.framework" />
+      <framework src="CoreGraphics.framework" />
+      <framework src="CoreFoundation.framework" />
+
+      <!-- Add a value to our Info.plist file for iOS 10+ security permissions -->
+      <config-file target="*-Info.plist" parent="NSCameraUsageDescription">
+        <string>To scan for images targets.</string>
+      </config-file>
+    </platform>
+
+    <dependency id="cordova-plugin-vuforia-sdk" version="6.x.x" />
 </plugin>

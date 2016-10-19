@@ -1,15 +1,24 @@
 # Vuforia Cordova Plugin (Android & iOS)
 This plugin allows the application to detect targets and using Vuforia SDK, render 3D objects and play video.
 
+### Note
+The plugin is aimed to work in **portrait mode**, should also work in landscape but no guarantees.
+
 ## Android
 - The plugin aims to be used with Android API >= 16 (4.1 Jelly Bean).
 
+## iOS
+- Due to Vuforia SDK requirements the plugin aims to be used with iOS version >= 8.
 
 ### Note
 In *config.xml* add Android and iOS target preference
 ```javascript
 <platform name="android">
     <preference name="android-minSdkVersion" value="16" />
+</platform>
+<platform name="ios">
+    <preference name="target-device" value="handset"/>
+    <preference name="deployment-target" value="8.0"/>
 </platform>
 ```
 
@@ -22,8 +31,11 @@ Again in *config.xml* add the following preference.
 ## License
 Add the folder `license/` with a text file `vuforiaLicense.txt` in your project `www/` folder and put you license inside.
 
-## Assests
-Add the folder `assest/` in your project `www/` folder and put your 3D and video assests there with the following organization.
+## Assets
+Add the folder `assets/` in your project `www/` folder and put your 3D and video assets there with the following organization.
+
+### Assets iOS
+Right now the plugin doesn't have Wavefront loader/parser for iOS so you need to convert it using `obj2opengl` and add it manually.
 
 ## Usage
 The plugin offers the functions `isDetecting` and `setLang`.

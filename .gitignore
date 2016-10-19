@@ -1,2 +1,5 @@
 # Ignore MacOS DS_Store files
 .DS_Store
+
+# ignore custom 3d object header file
+src/ios/milestone.h
