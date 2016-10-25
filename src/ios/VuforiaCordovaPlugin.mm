@@ -5,7 +5,7 @@
 {
     NSString *lang;
     NSString *detectedTarget;
-    BOOL playOnDetection, callbackSet;
+    BOOL playOnDetection, callbackSet, called;
     VuforiaViewController *vuforiaViewController;
 }
 
@@ -37,7 +37,7 @@
         }
 
         [self.commandDelegate sendPluginResult:pluginResult callbackId: command.callbackId];
-        
+
         [self saveLocally];
     }];
 }
@@ -53,7 +53,7 @@
         pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:msg];
 
         [self.commandDelegate sendPluginResult:pluginResult callbackId: command.callbackId];
-        
+
         [self saveLocally];
     }];
 }
@@ -63,7 +63,8 @@
     detectedTarget = @"";
     playOnDetection = true;
     callbackSet = false;
-    
+    called = false;
+
     [self saveLocally];
 
     // make webview transparent
@@ -73,14 +74,13 @@
     }
     [self.webView setBackgroundColor:[UIColor clearColor]];
     [self.webView setOpaque: NO];
-    
+
     // add view controller and vuforia view to superview
     vuforiaViewController = [[VuforiaViewController alloc] init];
     [vuforiaViewController addCordovaPlugin:self];
     [self.viewController addChildViewController:vuforiaViewController];
     vuforiaViewController.view.frame = [[UIScreen mainScreen] bounds];
     [self.webView.superview addSubview:vuforiaViewController.view];
-    [vuforiaViewController didMoveToParentViewController:self.viewController];
     [self.webView.superview bringSubviewToFront:self.webView];
     [vuforiaViewController didMoveToParentViewController:self.viewController];
 }
@@ -116,13 +116,16 @@
             // if the target changed update it and notify
             if (targetName && [targetName caseInsensitiveCompare:detectedTarget] != NSOrderedSame) {
                 detectedTarget = targetName;
-                // force a false detection between two consecutives target detections
-                [self sendDetectionUpdate:false target:@""];
                 [self sendDetectionUpdate:true target:detectedTarget];
             }
+            called = false;
         } else {
+            if(!called) {
+                [self sendDetectionUpdate:false target:@""];
+                called = true;
+            }
             // if no target is detected after a detection, update it and notify
-            if (detectedTarget && detectedTarget.length) {
+            if (detectedTarget && [detectedTarget length] == 0) {
                 detectedTarget = targetName;
                 [self sendDetectionUpdate:false target:detectedTarget];
             }
