@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Locale;
 import java.util.Vector;
 
 import android.Manifest;
@@ -12,18 +13,19 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
-import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.graphics.Color;
+import android.graphics.PixelFormat;
 import android.os.Build;
-import android.support.v4.app.ActivityCompat;
 import android.view.GestureDetector;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
+import android.view.WindowManager;
 import android.widget.RelativeLayout;
 
 import org.apache.cordova.CallbackContext;
@@ -57,6 +59,8 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
     private static final String TAG = "VuforiaCordovaPlugin";
     private static final String LICENSE_LOCATION = "www/license/vuforiaLicense.txt";
     private static final String ASSETS_FOLDER = "www/assets/";
+
+    private static final int REQUEST_PERMISSIONS = 123;
 
     // Movie for the Targets:
     public static final int NUM_TARGETS = 2;
@@ -111,10 +115,13 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
 
     private String detectedTarget = "";
 
-    static String mLang = "nl";
+    private String mLang = "nl";
     private boolean mCalledPermissions = false;
 
-    private boolean playOnDetection = true;
+    private boolean mPlayOnDetection = true;
+
+    private boolean mStartedAPP = false,
+            mCalled = false;
 
 
     @Override
@@ -126,11 +133,16 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
 
         Logger.d(TAG, "initialize");
 
+        mActivity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        mActivity.getWindow().setFormat(PixelFormat.TRANSLUCENT);
+        mActivity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+
         loadingDialogHandler = new LoadingDialogHandler(mActivity);
 
         startLoadingAnimation();
 
-        checkPermissions();
+        // checkPermissions();
     }
 
     @Override
@@ -143,6 +155,7 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
             if (lang != null && !lang.isEmpty()) {
                 mLang = lang;
                 callbackContext.success("Language was set to: " + mLang );
+                saveLocally();
             } else {
                 callbackContext.error("Error: missing language.");
             }
@@ -152,8 +165,9 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
         if (action.equals("autoPlay")) {
             Logger.i(TAG, "autoPlay called");
             boolean autoplay = data.getBoolean(0);
-            playOnDetection = autoplay;
+            mPlayOnDetection = autoplay;
             callbackContext.success("Auto-play was set to: " + autoplay );
+            saveLocally();
             return true;
         }
 
@@ -172,117 +186,7 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
         super.onStart();
         Logger.i(TAG, "onStart(): Activity starting");
 
-        String vuforiaLicense = loadLicence();
-
-        vuforiaAppSession = new VuforiaAppSession(this, vuforiaLicense);
-
-        mDatasetStrings.add(ASSETS_FOLDER + "OMAD.xml");
-
-        if(!vuforiaAppSession.isInitialized())
-            vuforiaAppSession.initAR(mActivity, ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
-
-        // Load any sample specific textures:
-        mTextures = new Vector<Texture>();
-        mVideoTextures = new Vector<Texture>();
-        loadTextures();
-
-        mIsDroidDevice = android.os.Build.MODEL.toLowerCase().startsWith(
-                "droid");
-
-        // Create the gesture detector that will handle the single and
-        // double taps:
-        mSimpleListener = new GestureDetector.SimpleOnGestureListener();
-        mGestureDetector = new GestureDetector(mActivity.getApplicationContext(), mSimpleListener);
-
-        mVideoPlayerHelper = new VideoPlayerHelper[NUM_TARGETS];
-        mSeekPosition = new int[NUM_TARGETS];
-        mWasPlaying = new boolean[NUM_TARGETS];
-        mMovieName = new String[NUM_TARGETS];
-
-        // Create the video player helper that handles the playback of the movie
-        // for the targets:
-        for (int i = 0; i < NUM_TARGETS; i++) {
-            mVideoPlayerHelper[i] = new VideoPlayerHelper();
-            mVideoPlayerHelper[i].init();
-            mVideoPlayerHelper[i].setActivity(mActivity);
-        }
-
-        mMovieName[NL] = ASSETS_FOLDER + "VideoPlayback/energylab25fps_nl.mp4";
-        mMovieName[FR] = ASSETS_FOLDER + "VideoPlayback/energylab25fps_fr.mp4";
-
-        // Set the double tap listener:
-        mGestureDetector.setOnDoubleTapListener(new GestureDetector.OnDoubleTapListener() {
-            public boolean onDoubleTap(MotionEvent e) {
-                // We do not react to this event
-                return false;
-            }
-
-
-            public boolean onDoubleTapEvent(MotionEvent e) {
-                // We do not react to this event
-                return false;
-            }
-
-
-            // Handle the single tap
-            public boolean onSingleTapConfirmed(MotionEvent e) {
-                boolean isSingleTapHandled = false;
-                // Do not react if the StartupScreen is being displayed
-                for (int i = 0; i < NUM_TARGETS; i++) {
-                    // Verify that the tap happened inside the target
-                    if (mRenderer != null && mRenderer.isTapOnScreenInsideTarget(i, e.getX(),
-                            e.getY())) {
-                        // Check if it is playable on texture
-                        if (mVideoPlayerHelper[i].isPlayableOnTexture()) {
-                            // We can play only if the movie was paused, ready
-                            // or stopped
-                            if ((mVideoPlayerHelper[i].getStatus() == MEDIA_STATE.PAUSED)
-                                    || (mVideoPlayerHelper[i].getStatus() == MEDIA_STATE.READY)
-                                    || (mVideoPlayerHelper[i].getStatus() == MEDIA_STATE.STOPPED)
-                                    || (mVideoPlayerHelper[i].getStatus() == MEDIA_STATE.REACHED_END)) {
-                                // Pause all other media
-                                pauseAll(i);
-
-                                // If it has reached the end then rewind
-                                if ((mVideoPlayerHelper[i].getStatus() == MEDIA_STATE.REACHED_END))
-                                    mSeekPosition[i] = 0;
-
-                                mVideoPlayerHelper[i].play(mPlayFullscreenVideo,
-                                        mSeekPosition[i]);
-                                mSeekPosition[i] = VideoPlayerHelper.CURRENT_POSITION;
-                            } else if (mVideoPlayerHelper[i].getStatus() == MEDIA_STATE.PLAYING) {
-                                // If it is playing then we pause it
-                                mVideoPlayerHelper[i].pause();
-                            }
-                        } else if (mVideoPlayerHelper[i].isPlayableFullscreen()) {
-                            // If it isn't playable on texture
-                            // Either because it wasn't requested or because it
-                            // isn't supported then request playback fullscreen.
-                            mVideoPlayerHelper[i].play(true,
-                                    VideoPlayerHelper.CURRENT_POSITION);
-                        }
-
-                        isSingleTapHandled = true;
-
-                        // Even though multiple videos can be loaded only one
-                        // can be playing at any point in time. This break
-                        // prevents that, say, overlapping videos trigger
-                        // simultaneously playback.
-                        break;
-                    }
-                }
-
-                return isSingleTapHandled;
-            }
-        });
-
-        mWebView.getView().setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                mGestureDetector.onTouchEvent(event);
-                return false;
-            }
-        });
+        checkPermissions();
     }
 
 
@@ -738,8 +642,10 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
 
     private void checkPermissions() {
         if (Build.VERSION.SDK_INT >= 23) {
-            boolean cameraPermission = ActivityCompat.checkSelfPermission(mActivity, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
-            boolean storagePermission = ActivityCompat.checkSelfPermission(mActivity, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+            boolean cameraPermission = cordova.hasPermission(Manifest.permission.CAMERA);
+            boolean storageWritePermission = cordova.hasPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+            boolean storageReadPermission = cordova.hasPermission(Manifest.permission.READ_EXTERNAL_STORAGE);
+            boolean storagePermission = storageWritePermission && storageReadPermission;
 
             boolean mAllPermissions = cameraPermission && storagePermission;
 
@@ -748,10 +654,16 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
                 Context context = mActivity.getApplicationContext();
                 Intent intent = new Intent(context, PermissionsRequester.class);
                 mActivity.startActivity(intent);
+            } else {
+                if(!mStartedAPP) {
+                    startApp();
+                }
             }
         } else { //permission is automatically granted on sdk<23 upon installation
-            Logger.i(TAG, "Permission is already granted");
-
+            Logger.i(TAG, "Permissions are already granted");
+            if(!mStartedAPP) {
+                startApp();
+            }
         }
     }
 
@@ -796,7 +708,7 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
             index = 2;
         }
 
-        String jsonObj = String.format("{\"state\": %b, \"target\": \"%s\", \"index\": \"%d\"}", state, targetName, index);
+        String jsonObj = String.format(Locale.getDefault(), "{\"state\": %b, \"target\": \"%s\", \"index\": \"%d\"}", state, targetName, index);
 
         if (state) {
             result = new PluginResult(PluginResult.Status.OK, jsonObj);
@@ -816,8 +728,13 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
                     detectedTarget = targetName;
                     sendDetectionUpdate(true, detectedTarget);
                 }
+                mCalled = false;
             } else {
                 // if no target is detected after a detection, update it and notify
+                if(!mCalled) {
+                    sendDetectionUpdate(false, "");
+                    mCalled = true;
+                }
                 if (!detectedTarget.isEmpty()) {
                     detectedTarget = targetName;
                     sendDetectionUpdate(false, detectedTarget);
@@ -826,7 +743,128 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
         }
     }
 
-    public boolean getAutoPlayState() {
-        return playOnDetection;
+    private void saveLocally() {
+        //--SAVE Data
+        SharedPreferences preferences = mActivity.getApplicationContext().getSharedPreferences("MyPreferences", Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = preferences.edit();
+        editor.putString("lang", mLang);
+        editor.putBoolean("playOnDetection", mPlayOnDetection);
+        editor.apply();
+    }
+
+    private void startApp() {
+        String vuforiaLicense = loadLicence();
+
+        vuforiaAppSession = new VuforiaAppSession(this, vuforiaLicense);
+
+        mDatasetStrings.add(ASSETS_FOLDER + "OMAD.xml");
+
+        if(!vuforiaAppSession.isInitialized())
+            vuforiaAppSession.initAR(mActivity, ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+
+        // Load any sample specific textures:
+        mTextures = new Vector<Texture>();
+        mVideoTextures = new Vector<Texture>();
+        loadTextures();
+
+        mIsDroidDevice = android.os.Build.MODEL.toLowerCase().startsWith(
+                "droid");
+
+        // Create the gesture detector that will handle the single and
+        // double taps:
+        mSimpleListener = new GestureDetector.SimpleOnGestureListener();
+        mGestureDetector = new GestureDetector(mActivity.getApplicationContext(), mSimpleListener);
+
+        mVideoPlayerHelper = new VideoPlayerHelper[NUM_TARGETS];
+        mSeekPosition = new int[NUM_TARGETS];
+        mWasPlaying = new boolean[NUM_TARGETS];
+        mMovieName = new String[NUM_TARGETS];
+
+        // Create the video player helper that handles the playback of the movie
+        // for the targets:
+        for (int i = 0; i < NUM_TARGETS; i++) {
+            mVideoPlayerHelper[i] = new VideoPlayerHelper();
+            mVideoPlayerHelper[i].init();
+            mVideoPlayerHelper[i].setActivity(mActivity);
+        }
+
+        mMovieName[NL] = ASSETS_FOLDER + "VideoPlayback/energylab25fps_nl.mp4";
+        mMovieName[FR] = ASSETS_FOLDER + "VideoPlayback/energylab25fps_fr.mp4";
+
+        // Set the double tap listener:
+        mGestureDetector.setOnDoubleTapListener(new GestureDetector.OnDoubleTapListener() {
+            public boolean onDoubleTap(MotionEvent e) {
+                // We do not react to this event
+                return false;
+            }
+
+
+            public boolean onDoubleTapEvent(MotionEvent e) {
+                // We do not react to this event
+                return false;
+            }
+
+
+            // Handle the single tap
+            public boolean onSingleTapConfirmed(MotionEvent e) {
+                boolean isSingleTapHandled = false;
+                // Do not react if the StartupScreen is being displayed
+                for (int i = 0; i < NUM_TARGETS; i++) {
+                    // Verify that the tap happened inside the target
+                    if (mRenderer != null && mRenderer.isTapOnScreenInsideTarget(i, e.getX(),
+                            e.getY())) {
+                        // Check if it is playable on texture
+                        if (mVideoPlayerHelper[i].isPlayableOnTexture()) {
+                            // We can play only if the movie was paused, ready
+                            // or stopped
+                            if ((mVideoPlayerHelper[i].getStatus() == MEDIA_STATE.PAUSED)
+                                    || (mVideoPlayerHelper[i].getStatus() == MEDIA_STATE.READY)
+                                    || (mVideoPlayerHelper[i].getStatus() == MEDIA_STATE.STOPPED)
+                                    || (mVideoPlayerHelper[i].getStatus() == MEDIA_STATE.REACHED_END)) {
+                                // Pause all other media
+                                pauseAll(i);
+
+                                // If it has reached the end then rewind
+                                if ((mVideoPlayerHelper[i].getStatus() == MEDIA_STATE.REACHED_END))
+                                    mSeekPosition[i] = 0;
+
+                                mVideoPlayerHelper[i].play(mPlayFullscreenVideo,
+                                        mSeekPosition[i]);
+                                mSeekPosition[i] = VideoPlayerHelper.CURRENT_POSITION;
+                            } else if (mVideoPlayerHelper[i].getStatus() == MEDIA_STATE.PLAYING) {
+                                // If it is playing then we pause it
+                                mVideoPlayerHelper[i].pause();
+                            }
+                        } else if (mVideoPlayerHelper[i].isPlayableFullscreen()) {
+                            // If it isn't playable on texture
+                            // Either because it wasn't requested or because it
+                            // isn't supported then request playback fullscreen.
+                            mVideoPlayerHelper[i].play(true,
+                                    VideoPlayerHelper.CURRENT_POSITION);
+                        }
+
+                        isSingleTapHandled = true;
+
+                        // Even though multiple videos can be loaded only one
+                        // can be playing at any point in time. This break
+                        // prevents that, say, overlapping videos trigger
+                        // simultaneously playback.
+                        break;
+                    }
+                }
+
+                return isSingleTapHandled;
+            }
+        });
+
+        mWebView.getView().setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                mGestureDetector.onTouchEvent(event);
+                return false;
+            }
+        });
+
+        mStartedAPP = true;
     }
 }

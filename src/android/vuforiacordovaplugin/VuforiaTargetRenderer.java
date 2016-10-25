@@ -15,6 +15,8 @@ import java.nio.ByteOrder;
 import java.util.Vector;
 
 import android.app.Activity;
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.opengl.GLES11Ext;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
@@ -28,7 +30,6 @@ import com.cloudoki.vuforiacordovaplugin.utils.LoadingDialogHandler;
 import com.cloudoki.vuforiacordovaplugin.utils.Logger;
 import com.cloudoki.vuforiacordovaplugin.utils.Math;
 import com.cloudoki.vuforiacordovaplugin.utils.ObjectParser;
-import com.cloudoki.vuforiacordovaplugin.utils.Teapot;
 import com.cloudoki.vuforiacordovaplugin.utils.Texture;
 import com.cloudoki.vuforiacordovaplugin.utils.Utils;
 import com.cloudoki.vuforiacordovaplugin.video.KeyFrameShaders;
@@ -65,7 +66,6 @@ public class VuforiaTargetRenderer implements GLSurfaceView.Renderer, AppRendere
 
     private AppRenderer mAppRenderer;
 
-    private Teapot mTeapot;
     private ObjectParser mModel;
 
     private Renderer mRenderer;
@@ -147,6 +147,8 @@ public class VuforiaTargetRenderer implements GLSurfaceView.Renderer, AppRendere
 
     private boolean mRotate = false;
     private float mAngle = 0;
+
+    private boolean mPaused = false;
 
 
     public VuforiaTargetRenderer(VuforiaCordovaPlugin vcp, Activity activity, VuforiaAppSession session) {
@@ -253,10 +255,14 @@ public class VuforiaTargetRenderer implements GLSurfaceView.Renderer, AppRendere
         if (!mIsActive)
             return;
 
+        //--READ data
+        SharedPreferences preferences = mActivity.getApplicationContext().getSharedPreferences("MyPreferences", Context.MODE_PRIVATE);
+        Boolean playOnDetection = preferences.getBoolean("playOnDetection", true);
+
         for (int i = 0; i < NUM_TARGETS; i++) {
             if (mVideoPlayerHelper[i] != null) {
                 if (mVideoPlayerHelper[i].isPlayableOnTexture()) {
-                    if(isTracking(i) && mVuforiaCordovaPlugin.getAutoPlayState()) {
+                    if(isTracking(i) && playOnDetection && !mPaused) {
                         // auto-play video if target is being detected
                         if ((mVideoPlayerHelper[i].getStatus() == VideoPlayerHelper.MEDIA_STATE.PAUSED)
                                 || (mVideoPlayerHelper[i].getStatus() == VideoPlayerHelper.MEDIA_STATE.READY)
@@ -325,6 +331,8 @@ public class VuforiaTargetRenderer implements GLSurfaceView.Renderer, AppRendere
             targetPositiveDimensions[i].setData(temp);
         }
 
+        boolean lostTracking = false;
+
         // Call our function to render content
         String target = renderFrame();
         if(!target.isEmpty() && target.equalsIgnoreCase("tombstone")) {
@@ -335,6 +343,10 @@ public class VuforiaTargetRenderer implements GLSurfaceView.Renderer, AppRendere
             renderVideo(temp);
         }
 
+        if(target.isEmpty() || !target.equalsIgnoreCase("tia")) {
+            lostTracking = true;
+        }
+
         for (int i = 0; i < NUM_TARGETS; i++) {
             // Ask whether the target is currently being tracked and if so react
             // to it
@@ -342,6 +354,10 @@ public class VuforiaTargetRenderer implements GLSurfaceView.Renderer, AppRendere
                 // If it is tracking reset the timestamp for lost tracking
                 mLostTrackingSince[i] = -1;
             } else {
+                // reset for autoplay if tracking is lost
+                if(mPaused && lostTracking) {
+                    mPaused = false;
+                }
                 // If it isn't tracking
                 // check whether it just lost it or if it's been a while
                 if (mLostTrackingSince[i] < 0)
@@ -349,8 +365,9 @@ public class VuforiaTargetRenderer implements GLSurfaceView.Renderer, AppRendere
                 else {
                     // If it's been more than 2 seconds then pause the player
                     if ((SystemClock.uptimeMillis() - mLostTrackingSince[i]) > 2000) {
-                        if (mVideoPlayerHelper[i] != null)
+                        if (mVideoPlayerHelper[i] != null) {
                             mVideoPlayerHelper[i].pause();
+                        }
                     }
                 }
             }
@@ -468,8 +485,6 @@ public class VuforiaTargetRenderer implements GLSurfaceView.Renderer, AppRendere
                 "texSampler2D");
 
         if(!mModelsLoaded) {
-            mTeapot = new Teapot();
-            //mTomstone = new Tombstone();
             try {
                 mModel = new ObjectParser(ASSETS_FOLDER + "milestone.obj", mActivity.getAssets());
                 mModelsLoaded = mModel.didLoad();
@@ -698,6 +713,10 @@ public class VuforiaTargetRenderer implements GLSurfaceView.Renderer, AppRendere
         else
             GLES20.glFrontFace(GLES20.GL_CCW); // Back camera
 
+        //--READ data
+        SharedPreferences preferences = mActivity.getApplicationContext().getSharedPreferences("MyPreferences", Context.MODE_PRIVATE);
+        String lang = preferences.getString("lang", "nl");
+
         // Did we find any trackables this frame?
         for (int tIdx = 0; tIdx < state.getNumTrackableResults(); tIdx++) {
             // Get the trackable:
@@ -711,7 +730,7 @@ public class VuforiaTargetRenderer implements GLSurfaceView.Renderer, AppRendere
             // We store the modelview matrix to be used later by the tap
             // calculation
             if (imageTarget.getName().compareTo("tia") == 0) {
-                currentTarget = VuforiaCordovaPlugin.mLang.equalsIgnoreCase("nl") ?
+                currentTarget = lang.equalsIgnoreCase("nl") ?
                         VuforiaCordovaPlugin.NL : VuforiaCordovaPlugin.FR;
 
                 modelViewMatrix[currentTarget] = Tool
@@ -1001,10 +1020,12 @@ public class VuforiaTargetRenderer implements GLSurfaceView.Renderer, AppRendere
                 && (intersection.getData()[1] >= -(targetPositiveDimensions[target]
                 .getData()[1]))
                 && (intersection.getData()[1] <= (targetPositiveDimensions[target]
-                .getData()[1])))
+                .getData()[1]))) {
+            mPaused = true;
             return true;
-        else
+        } else {
             return false;
+        }
     }
 
 
