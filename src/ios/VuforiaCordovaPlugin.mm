@@ -19,6 +19,10 @@
     NSLog(@"isDetecting called");
     self.callbackID = command.callbackId;
     callbackSet = true;
+
+    CDVPluginResult* plugin_result = [CDVPluginResult resultWithStatus:CDVCommandStatus_NO_RESULT];
+    [plugin_result setKeepCallbackAsBool:YES];
+    [self.commandDelegate sendPluginResult:plugin_result callbackId:self.callbackID];
 }
 
 - (void) setLang:(CDVInvokedUrlCommand *)command {
@@ -120,14 +124,11 @@
             }
             called = false;
         } else {
-            if(!called) {
-                [self sendDetectionUpdate:false target:@""];
-                called = true;
-            }
             // if no target is detected after a detection, update it and notify
-            if (detectedTarget && [detectedTarget length] == 0) {
-                detectedTarget = targetName;
+            if(!called) {
+                detectedTarget = @"";
                 [self sendDetectionUpdate:false target:detectedTarget];
+                called = true;
             }
         }
     }
