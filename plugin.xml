@@ -64,6 +64,8 @@
       <!-- Add our required strings -->
       <config-file target="res/values/strings.xml" parent="/*">
           <string name="PERMISSIONS">Please allow the permissions requested or the application will not be able to work.</string>
+          <string name="GRANTED">All permissions allowed, press back key to go back to the application.</string>
+          <string name="attention">Attention</string>
 
           <string name="button_OK">OK</string>
 
