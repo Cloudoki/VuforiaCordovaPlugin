@@ -66,18 +66,10 @@
 - (void) rotateScreen:(CDVInvokedUrlCommand *)command {
     NSLog(@"rotateScreen called");
     BOOL _rotate = [[command argumentAtIndex:0] boolValue];
-    if(_rotate) {
-        dispatch_sync(dispatch_get_main_queue(), ^{
-            CGAffineTransform t = CGAffineTransformMakeRotation((90*(M_PI/180.0)));
-            self.webView.transform = t;
-            self.webView.bounds = CGRectMake(0, 0, bounds.size.height, bounds.size.width);
-        });
-    } else {
-        dispatch_sync(dispatch_get_main_queue(), ^{
-            self.webView.transform = CGAffineTransformIdentity;
-            self.webView.bounds = CGRectMake(0, 0, bounds.size.width, bounds.size.height);
-        });
-    }
+    NSLog(@"Screen was rotated: %s", _rotate ? "true" : "false");
+    [self.commandDelegate runInBackground:^{
+        [self handleRotation:_rotate];
+    }];
     NSString* msg = [NSString stringWithFormat:@"Screen was rotated: %s", _rotate ? "true" : "false"];
     CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:msg];
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
@@ -154,6 +146,21 @@
                 called = true;
             }
         }
+    }
+}
+
+- (void) handleRotation:(BOOL) rot {
+    if(rot) {
+        dispatch_sync(dispatch_get_main_queue(), ^{
+            CGAffineTransform t = CGAffineTransformMakeRotation((90*(M_PI/180.0)));
+            self.webView.transform = t;
+            self.webView.bounds = CGRectMake(0, 0, bounds.size.height, bounds.size.width);
+        });
+    } else {
+        dispatch_sync(dispatch_get_main_queue(), ^{
+            self.webView.transform = CGAffineTransformIdentity;
+            self.webView.bounds = CGRectMake(0, 0, bounds.size.width, bounds.size.height);
+        });
     }
 }
 
