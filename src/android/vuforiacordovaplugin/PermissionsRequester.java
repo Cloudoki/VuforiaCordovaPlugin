@@ -12,6 +12,7 @@ import android.provider.Settings;
 import android.view.LayoutInflater;
 import android.view.ViewGroup;
 import android.widget.RelativeLayout;
+import android.widget.TextView;
 
 import com.karumi.dexter.Dexter;
 import com.karumi.dexter.MultiplePermissionsReport;
@@ -43,13 +44,21 @@ public class PermissionsRequester extends Activity {
     }
 
     private void requestPermissions() {
+        String package_name = getApplication().getPackageName();
+        Resources resources = getApplication().getResources();
+        final int view_id = resources.getIdentifier("textView", "id", package_name);
+        final int text_id = resources.getIdentifier("GRANTED", "string", package_name);
+
         Dexter.initialize(this.getApplicationContext());
 
         Dexter.checkPermissions(new MultiplePermissionsListener() {
             @Override
             public void onPermissionsChecked(MultiplePermissionsReport report) {
-                if(report.areAllPermissionsGranted())
+                if(report.areAllPermissionsGranted()) {
+                    TextView message = (TextView) findViewById(view_id);
+                    message.setText(getString(text_id));
                     onBackPressed();
+                }
             }
 
             @Override

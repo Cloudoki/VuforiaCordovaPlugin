@@ -60,12 +60,10 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
     private static final String LICENSE_LOCATION = "www/license/vuforiaLicense.txt";
     private static final String ASSETS_FOLDER = "www/assets/";
 
-    private static final int REQUEST_PERMISSIONS = 123;
-
     // Movie for the Targets:
     public static final int NUM_TARGETS = 2;
-    public static final int FR = 1;
-    public static final int NL = 0;
+    static final int FR = 1;
+    static final int NL = 0;
     private VideoPlayerHelper mVideoPlayerHelper[] = null;
     private int mSeekPosition[] = null;
     private boolean mWasPlaying[] = null;
@@ -78,7 +76,7 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
     private GestureDetector mGestureDetector = null;
     private GestureDetector.SimpleOnGestureListener mSimpleListener = null;
 
-    VuforiaAppSession vuforiaAppSession;
+    private VuforiaAppSession vuforiaAppSession;
 
     private Activity mActivity;
 
@@ -108,7 +106,7 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
     // Alert Dialog used to display SDK errors
     private AlertDialog mErrorDialog;
 
-    boolean mIsDroidDevice = false;
+    private boolean mIsDroidDevice = false;
 
     // callback to call detections
     private CallbackContext cb;
@@ -174,6 +172,10 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
         if (action.equals("isDetecting")) {
             Logger.i(TAG, "isDetecting called");
             cb = callbackContext;
+
+            PluginResult result = new PluginResult(PluginResult.Status.NO_RESULT);
+            result.setKeepCallback(true);
+            cb.sendPluginResult(result);
             return true;
         }
 
@@ -520,7 +522,7 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
 
 
     // Shows initialization error messages as System dialogs
-    public void showInitializationErrorMessage(String message) {
+    private void showInitializationErrorMessage(String message) {
         final String errorMessage = message;
         mActivity.runOnUiThread(new Runnable() {
             public void run() {
@@ -720,7 +722,7 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
         cb.sendPluginResult(result);
     }
 
-    public void updateDetectedTarget(boolean foundTarget, String targetName) {
+    void updateDetectedTarget(boolean foundTarget, String targetName) {
         if(cb != null) {
             if (foundTarget) {
                 // if the target changed update it and notify
@@ -732,12 +734,9 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
             } else {
                 // if no target is detected after a detection, update it and notify
                 if(!mCalled) {
-                    sendDetectionUpdate(false, "");
-                    mCalled = true;
-                }
-                if (!detectedTarget.isEmpty()) {
-                    detectedTarget = targetName;
+                    detectedTarget = "";
                     sendDetectionUpdate(false, detectedTarget);
+                    mCalled = true;
                 }
             }
         }
