@@ -6,6 +6,7 @@ import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.res.Resources;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
@@ -40,6 +41,10 @@ public class PermissionsRequester extends Activity {
         addContentView(mUILayout, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT));
 
+        final int view_id = resources.getIdentifier("textView", "id", package_name);
+        TextView message = (TextView) findViewById(view_id);
+        message.setTextColor(Color.parseColor("#FF1900"));
+
         requestPermissions();
     }
 
@@ -57,6 +62,7 @@ public class PermissionsRequester extends Activity {
                 if(report.areAllPermissionsGranted()) {
                     TextView message = (TextView) findViewById(view_id);
                     message.setText(getString(text_id));
+                    message.setTextColor(Color.parseColor("#01C800"));
                     onBackPressed();
                 }
             }

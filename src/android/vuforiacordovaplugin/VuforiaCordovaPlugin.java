@@ -179,6 +179,20 @@ public class VuforiaCordovaPlugin extends CordovaPlugin implements VuforiaAppCon
             return true;
         }
 
+        if (action.equals("rotateScreen")) {
+            Logger.i(TAG, "rotateScreen called");
+            boolean _rotate = data.getBoolean(0);
+
+            if (_rotate) {
+                mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+            } else {
+                mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
+            }
+            callbackContext.success("Screen was rotated: " + _rotate);
+
+            return true;
+        }
+
         return false;
     }
 
