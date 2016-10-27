@@ -8,6 +8,7 @@
 - (void) isDetecting:(CDVInvokedUrlCommand *)command;
 - (void) setLang:(CDVInvokedUrlCommand *)command;
 - (void) autoPlay:(CDVInvokedUrlCommand *)command;
+- (void) rotateScreen:(CDVInvokedUrlCommand *)command;
 
 - (void) updateDetectedTarget:(BOOL)foundTarget target:(NSString*)targetName;
 

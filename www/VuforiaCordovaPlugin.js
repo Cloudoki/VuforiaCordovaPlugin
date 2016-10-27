@@ -16,6 +16,11 @@ VuforiaCordovaPlugin.prototype.autoPlay = function (autoplay, successCallback, e
   cordova.exec(successCallback, errorCallback, "VuforiaCordovaPlugin", "autoPlay", [autoplayOption]);
 };
 
+VuforiaCordovaPlugin.prototype.rotateScreen = function (shouldRotate, successCallback, errorCallback) {
+  var rotateOption = shouldRotate ? true : false;
+  cordova.exec(successCallback, errorCallback, "VuforiaCordovaPlugin", "rotateScreen", [rotateOption]);
+};
+
 if (!window.plugins) {
   window.plugins = {};
 }

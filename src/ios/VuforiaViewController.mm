@@ -206,7 +206,7 @@ namespace {
 }
 
 - (BOOL)shouldAutorotate {
-    return YES;
+    return NO;
 }
 
 #pragma mark - loading animation
@@ -338,7 +338,7 @@ namespace {
         [self activateDataSet:dataSetStonesAndChips];
         switchToStonesAndChips = NO;
     }
-    
+
     [self checkDetectedImage:state];
 }
 
@@ -348,10 +348,10 @@ namespace {
     BOOL foundIt = NO;
 
     for (int i = 0; i < state->getNumTrackableResults(); ++i) {
-        
+
         const Vuforia::TrackableResult* result = state->getTrackableResult(i);
         const Vuforia::Trackable& trackable = result->getTrackable();
-        
+
         for(NSString *imageName in imageTargetNames) {
             //	Check if matched target is matched
             if (!strcmp(trackable.getName(), imageName.UTF8String)) {
@@ -361,7 +361,7 @@ namespace {
             }
         }
     }
-    
+
     if(vuforiaCordovaPlugin != nil) {
         [vuforiaCordovaPlugin updateDetectedTarget:foundIt target:targetName];
         [eaglView setDetectTarget:targetName];
@@ -574,13 +574,13 @@ namespace {
 
 // tap handler
 - (void)handleTap:(UITapGestureRecognizer *)sender {
-    
+
     if (sender.state == UIGestureRecognizerStateEnded) {
         // handling code
         CGPoint touchPoint = [sender locationInView:eaglView];
         [eaglView handleTouchPoint:touchPoint];
     }
-    
+
     [self autofocus:sender];
 }
 
